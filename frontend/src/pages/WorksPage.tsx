@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Search,
@@ -9,294 +9,222 @@ import {
   Database,
   RefreshCw,
   Eye,
-  SlidersHorizontal,
   X,
-  Check,
+  ChevronsLeft,
+  ChevronsRight,
+  Filter,
 } from 'lucide-react';
-import { fetchWorks } from '../services/api';
-import type { Work } from '../types';
+import { fetchWorks, fetchFilterOptions } from '../services/api';
+import type { Work, FilterOptions } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
-import { AuditBadge } from '../components/AuditBadge';
 import { LoadingSkeleton } from '../components/LoadingSkeleton';
-import { formatCurrency, formatCurrencyShort } from '../utils/formatters';
+import { formatCurrency } from '../utils/formatters';
 
 export const WorksPage: React.FC = () => {
   const [works, setWorks] = useState<Work[]>([]);
+  const [total, setTotal] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(true);
-  const [exported, setExported] = useState<boolean>(false);
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+    states: [],
+    statuses: [],
+    financial_years: [],
+  });
 
-  // Client-side Search and Filtering Controls
+  // Filter States
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [activeSearch, setActiveSearch] = useState<string>('');
   const [selectedState, setSelectedState] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedYear, setSelectedYear] = useState<string>('ALL');
-  const [sortField, setSortField] = useState<keyof Work>('sanctioned_amount');
+  const [sortField, setSortField] = useState<string>('sanctioned_amount');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Pagination
-  const [page, setPage] = useState<number>(0);
-  const [limit, setLimit] = useState<number>(10);
+  const [page, setPage] = useState<number>(1);
+  const [limit, setLimit] = useState<number>(25);
 
-  const loadAllWorks = async () => {
+  // Load filter dropdown options once
+  useEffect(() => {
+    fetchFilterOptions().then(setFilterOptions).catch(console.error);
+  }, []);
+
+  // Fetch works with current server-side filters
+  const loadWorks = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchWorks({ limit: 1000 });
-      setWorks(data || []);
+      const response = await fetchWorks({
+        page,
+        limit,
+        search: activeSearch || undefined,
+        state: selectedState !== 'ALL' ? selectedState : undefined,
+        status: selectedStatus !== 'ALL' ? selectedStatus : undefined,
+        financial_year: selectedYear !== 'ALL' ? selectedYear : undefined,
+        sort_by: sortField,
+        sort_order: sortOrder,
+      });
+
+      setWorks(response.items || []);
+      setTotal(response.total || 0);
+      setTotalPages(response.total_pages || 1);
       setLoading(false);
     } catch (err) {
       console.error('Failed to load works:', err);
       setLoading(false);
     }
-  };
+  }, [page, limit, activeSearch, selectedState, selectedStatus, selectedYear, sortField, sortOrder]);
 
   useEffect(() => {
-    loadAllWorks();
-  }, []);
+    loadWorks();
+  }, [loadWorks]);
 
-  // Compute unique filter dropdown options
-  const filterOptions = useMemo(() => {
-    const states = new Set<string>();
-    const statuses = new Set<string>();
-    const years = new Set<string>();
+  // Handle Search Submission
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPage(1);
+    setActiveSearch(searchTerm);
+  };
 
-    works.forEach((w) => {
-      if (w.state) states.add(w.state);
-      if (w.status) statuses.add(w.status);
-      if (w.financial_year) years.add(w.financial_year);
-    });
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setActiveSearch('');
+    setSelectedState('ALL');
+    setSelectedStatus('ALL');
+    setSelectedYear('ALL');
+    setSortField('sanctioned_amount');
+    setSortOrder('desc');
+    setPage(1);
+  };
 
-    return {
-      states: Array.from(states).sort(),
-      statuses: Array.from(statuses).sort(),
-      years: Array.from(years).sort(),
-    };
-  }, [works]);
-
-  // Filter and sort the dataset
-  const filteredAndSortedWorks = useMemo(() => {
-    return works
-      .filter((w) => {
-        // Search term match across multiple fields
-        const query = searchTerm.toLowerCase();
-        const matchesSearch =
-          !searchTerm ||
-          w.work_id?.toLowerCase().includes(query) ||
-          w.work_description?.toLowerCase().includes(query) ||
-          w.mp_name?.toLowerCase().includes(query) ||
-          w.constituency?.toLowerCase().includes(query) ||
-          w.implementing_agency?.toLowerCase().includes(query) ||
-          w.state?.toLowerCase().includes(query);
-
-        // State filter
-        const matchesState = selectedState === 'ALL' || w.state === selectedState;
-
-        // Status filter
-        const matchesStatus = selectedStatus === 'ALL' || w.status === selectedStatus;
-
-        // Year filter
-        const matchesYear = selectedYear === 'ALL' || w.financial_year === selectedYear;
-
-        return matchesSearch && matchesState && matchesStatus && matchesYear;
-      })
-      .sort((a, b) => {
-        const valA = a[sortField];
-        const valB = b[sortField];
-
-        if (valA === null || valA === undefined) return 1;
-        if (valB === null || valB === undefined) return -1;
-
-        if (typeof valA === 'number' && typeof valB === 'number') {
-          return sortOrder === 'asc' ? valA - valB : valB - valA;
-        }
-
-        const strA = String(valA).toLowerCase();
-        const strB = String(valB).toLowerCase();
-        return sortOrder === 'asc' ? strA.localeCompare(strB) : strB.localeCompare(strA);
-      });
-  }, [works, searchTerm, selectedState, selectedStatus, selectedYear, sortField, sortOrder]);
-
-  // Financial summary for filtered dataset
-  const filteredSummary = useMemo(() => {
-    const totalSanctioned = filteredAndSortedWorks.reduce((sum, w) => sum + (w.sanctioned_amount || 0), 0);
-    const totalExpenditure = filteredAndSortedWorks.reduce((sum, w) => sum + (w.actual_expenditure || 0), 0);
-    return {
-      count: filteredAndSortedWorks.length,
-      sanctioned: totalSanctioned,
-      expenditure: totalExpenditure,
-    };
-  }, [filteredAndSortedWorks]);
-
-  // Paginated slice
-  const paginatedWorks = useMemo(() => {
-    const start = page * limit;
-    return filteredAndSortedWorks.slice(start, start + limit);
-  }, [filteredAndSortedWorks, page, limit]);
-
-  const totalPages = Math.ceil(filteredAndSortedWorks.length / limit);
-
-  const handleSort = (field: keyof Work) => {
+  const handleSort = (field: string) => {
     if (sortField === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
       setSortOrder('desc');
     }
+    setPage(1);
   };
 
-  const clearFilters = () => {
-    setSearchTerm('');
-    setSelectedState('ALL');
-    setSelectedStatus('ALL');
-    setSelectedYear('ALL');
-    setPage(0);
-  };
-
-  // Export filtered data as CSV
-  const exportToCSV = () => {
-    if (filteredAndSortedWorks.length === 0) return;
-
+  // Export current results as CSV
+  const handleExportCSV = () => {
+    if (!works.length) return;
     const headers = [
-      'Work ID',
-      'MP Name',
+      'Work_ID',
+      'Description',
+      'MP_Name',
       'Constituency',
       'State',
-      'District',
-      'Financial Year',
-      'Work Description',
-      'Implementing Agency',
-      'Recommended Amount (INR)',
-      'Sanctioned Amount (INR)',
-      'Actual Expenditure (INR)',
+      'Recommended_Amount',
+      'Sanctioned_Amount',
       'Status',
-      'Recommendation Date',
-      'Sanction Date',
-      'Actual Completion Date',
-      'Source URL',
+      'Financial_Year',
     ];
-
-    const rows = filteredAndSortedWorks.map((w) => [
-      `"${w.work_id || ''}"`,
-      `"${(w.mp_name || '').replace(/"/g, '""')}"`,
-      `"${(w.constituency || '').replace(/"/g, '""')}"`,
-      `"${(w.state || '').replace(/"/g, '""')}"`,
-      `"${(w.district || '').replace(/"/g, '""')}"`,
-      `"${w.financial_year || ''}"`,
+    const rows = works.map((w) => [
+      `"${w.work_id}"`,
       `"${(w.work_description || '').replace(/"/g, '""')}"`,
-      `"${(w.implementing_agency || '').replace(/"/g, '""')}"`,
-      w.recommended_amount !== null ? w.recommended_amount : '',
-      w.sanctioned_amount !== null ? w.sanctioned_amount : '',
-      w.actual_expenditure !== null ? w.actual_expenditure : '',
+      `"${w.mp_name || ''}"`,
+      `"${w.constituency || ''}"`,
+      `"${w.state || ''}"`,
+      w.recommended_amount ?? '',
+      w.sanctioned_amount ?? '',
       `"${w.status || ''}"`,
-      w.recommendation_date || '',
-      w.sanction_date || '',
-      w.actual_completion_date || '',
-      `"${w.source_url || ''}"`,
+      `"${w.financial_year || ''}"`,
     ]);
-
-    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `mplad_works_audit_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `mplad_works_page_${page}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-
-    setExported(true);
-    setTimeout(() => setExported(false), 3000);
   };
 
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <LoadingSkeleton rows={8} />
-      </div>
-    );
-  }
+  const startRecord = total === 0 ? 0 : (page - 1) * limit + 1;
+  const endRecord = Math.min(page * limit, total);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
-      {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 max-w-7xl mx-auto pb-16 px-4 sm:px-6 lg:px-8">
+      {/* Header and Controls */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
         <div>
-          <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
             <Database className="w-6 h-6 text-blue-700" />
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-              Work Projects Explorer
-            </h1>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-600 mt-1">
-            Search, filter, and audit verified MPLAD public development works.
+            MPLAD Works Database
+          </h1>
+          <p className="text-sm text-slate-600 mt-1">
+            Tracking <strong>{total.toLocaleString('en-IN')}</strong> verified project records across all States and Union Territories.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
           <button
-            onClick={exportToCSV}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-semibold shadow-xs transition-all"
-            title="Export filtered works to CSV"
+            onClick={loadWorks}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
+            title="Refresh current page"
           >
-            {exported ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="text-emerald-700">Exported CSV</span>
-              </>
-            ) : (
-              <>
-                <Download className="w-3.5 h-3.5 text-slate-600" />
-                <span>Export CSV ({filteredAndSortedWorks.length})</span>
-              </>
-            )}
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
           </button>
           <button
-            onClick={loadAllWorks}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium shadow-xs transition-colors"
-            title="Refresh database records"
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold shadow-xs transition-colors"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Refresh</span>
+            <Download className="w-3.5 h-3.5" />
+            <span>Export CSV</span>
           </button>
         </div>
       </div>
 
-      {/* Filter and Search Toolbar */}
-      <div className="rounded-2xl bg-white border border-slate-200 p-5 space-y-4 shadow-xs">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-          {/* Search Input */}
-          <div className="md:col-span-5 relative">
-            <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+      {/* Filter and Search Panel */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+        {/* Search Bar */}
+        <form onSubmit={handleSearchSubmit} className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
             <input
               type="text"
-              placeholder="Search description, MP, ID, Agency, State..."
+              placeholder="Search by Work ID, description, MP name, constituency, or agency..."
               value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setPage(0);
-              }}
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white focus:ring-1 focus:ring-blue-600 transition-all"
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
             />
             {searchTerm && (
               <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setActiveSearch('');
+                  setPage(1);
+                }}
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
               >
                 <X className="w-4 h-4" />
               </button>
             )}
           </div>
+          <button
+            type="submit"
+            className="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold rounded-xl transition-colors shadow-xs"
+          >
+            Search
+          </button>
+        </form>
 
-          {/* State Filter */}
-          <div className="md:col-span-2">
+        {/* Dropdown Filters Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">State / UT</label>
             <select
               value={selectedState}
               onChange={(e) => {
                 setSelectedState(e.target.value);
-                setPage(0);
+                setPage(1);
               }}
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-700 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-medium"
+              className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
             >
-              <option value="ALL">All States ({filterOptions.states.length})</option>
+              <option value="ALL">All States / UTs</option>
               {filterOptions.states.map((st) => (
                 <option key={st} value={st}>
                   {st}
@@ -305,17 +233,17 @@ export const WorksPage: React.FC = () => {
             </select>
           </div>
 
-          {/* Status Filter */}
-          <div className="md:col-span-2">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Project Status</label>
             <select
               value={selectedStatus}
               onChange={(e) => {
                 setSelectedStatus(e.target.value);
-                setPage(0);
+                setPage(1);
               }}
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-700 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-medium"
+              className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
             >
-              <option value="ALL">All Statuses ({filterOptions.statuses.length})</option>
+              <option value="ALL">All Statuses</option>
               {filterOptions.statuses.map((st) => (
                 <option key={st} value={st}>
                   {st}
@@ -324,274 +252,216 @@ export const WorksPage: React.FC = () => {
             </select>
           </div>
 
-          {/* Year Filter */}
-          <div className="md:col-span-2">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Financial Year</label>
             <select
               value={selectedYear}
               onChange={(e) => {
                 setSelectedYear(e.target.value);
-                setPage(0);
+                setPage(1);
               }}
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-700 focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-medium"
+              className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
             >
-              <option value="ALL">All Financial Years</option>
-              {filterOptions.years.map((yr) => (
-                <option key={yr} value={yr}>
-                  {yr}
+              <option value="ALL">All Years</option>
+              {filterOptions.financial_years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Clear Filters Button */}
-          <div className="md:col-span-1 flex items-center justify-end">
-            <button
-              onClick={clearFilters}
-              className="w-full md:w-auto p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-200 flex items-center justify-center transition-colors text-xs font-medium"
-              title="Reset all search & filters"
-            >
-              <SlidersHorizontal className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Financial Summary & Filter count bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 text-xs pt-3 border-t border-slate-100 text-slate-600">
-          <div className="flex flex-wrap items-center gap-3">
-            <span>
-              Matching: <strong className="text-slate-900">{filteredSummary.count}</strong> of{' '}
-              <strong className="text-slate-900">{works.length}</strong> works
-            </span>
-            <span className="text-slate-300">•</span>
-            <span>
-              Sanctioned Total: <strong className="text-emerald-700 font-semibold">{formatCurrencyShort(filteredSummary.sanctioned)}</strong>
-            </span>
-            <span className="text-slate-300">•</span>
-            <span>
-              Expenditure Total: <strong className="text-blue-700 font-semibold">{formatCurrencyShort(filteredSummary.expenditure)}</strong>
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1.5 text-slate-500 font-mono text-[11px]">
-            <span>Sort:</span>
-            <span className="text-blue-700 font-semibold">{String(sortField)}</span>
-            <span>({sortOrder.toUpperCase()})</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Data Table in Crisp White */}
-      <div className="rounded-2xl bg-white border border-slate-200 overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-700">
-            <thead className="bg-slate-50 text-slate-600 uppercase tracking-wider font-semibold text-[11px] border-b border-slate-200">
-              <tr>
-                <th
-                  onClick={() => handleSort('work_id')}
-                  className="py-3.5 px-4 cursor-pointer hover:text-slate-900 select-none whitespace-nowrap"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span>Work ID</span>
-                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('work_description')}
-                  className="py-3.5 px-4 cursor-pointer hover:text-slate-900 select-none min-w-[200px]"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span>Work Description</span>
-                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('mp_name')}
-                  className="py-3.5 px-4 cursor-pointer hover:text-slate-900 select-none whitespace-nowrap"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span>MP & Constituency</span>
-                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('state')}
-                  className="py-3.5 px-4 cursor-pointer hover:text-slate-900 select-none whitespace-nowrap"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span>State / District</span>
-                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('sanctioned_amount')}
-                  className="py-3.5 px-4 cursor-pointer hover:text-slate-900 select-none whitespace-nowrap text-right"
-                >
-                  <div className="flex items-center justify-end gap-1.5">
-                    <span>Sanctioned</span>
-                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('actual_expenditure')}
-                  className="py-3.5 px-4 cursor-pointer hover:text-slate-900 select-none whitespace-nowrap text-right"
-                >
-                  <div className="flex items-center justify-end gap-1.5">
-                    <span>Expenditure</span>
-                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('status')}
-                  className="py-3.5 px-4 cursor-pointer hover:text-slate-900 select-none whitespace-nowrap text-center"
-                >
-                  <div className="flex items-center justify-center gap-1.5">
-                    <span>Status</span>
-                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
-                  </div>
-                </th>
-                <th className="py-3.5 px-4 text-right whitespace-nowrap">Audit Dossier</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {paginatedWorks.map((work) => (
-                <tr
-                  key={work.work_id}
-                  className="hover:bg-slate-50/80 transition-colors group"
-                >
-                  {/* Work ID */}
-                  <td className="py-3.5 px-4 font-mono font-bold text-blue-700 whitespace-nowrap">
-                    <Link
-                      to={`/works/${encodeURIComponent(work.work_id)}`}
-                      className="hover:underline flex items-center gap-1"
-                    >
-                      {work.work_id}
-                    </Link>
-                  </td>
-
-                  {/* Work Description */}
-                  <td className="py-3.5 px-4">
-                    <div className="font-medium text-slate-900 max-w-md line-clamp-2 leading-snug">
-                      {work.work_description || <AuditBadge value={null} />}
-                    </div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">
-                      Agency: {work.implementing_agency || <AuditBadge value={null} />}
-                    </div>
-                  </td>
-
-                  {/* MP & Constituency */}
-                  <td className="py-3.5 px-4 whitespace-nowrap">
-                    <div className="font-semibold text-slate-900">
-                      {work.mp_name || <AuditBadge value={null} />}
-                    </div>
-                    <div className="text-[11px] text-slate-500 flex items-center gap-1">
-                      <span>{work.constituency || 'Unspecified'}</span>
-                      {work.financial_year && (
-                        <span className="text-blue-700 font-mono">({work.financial_year})</span>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* State / District */}
-                  <td className="py-3.5 px-4 whitespace-nowrap">
-                    <div className="text-slate-800 font-medium">
-                      {work.state || <AuditBadge value={null} />}
-                    </div>
-                    <div className="text-[11px] text-slate-500">
-                      {work.district || <AuditBadge value={null} />}
-                    </div>
-                  </td>
-
-                  {/* Sanctioned */}
-                  <td className="py-3.5 px-4 font-mono text-right whitespace-nowrap font-bold text-emerald-700">
-                    {formatCurrency(work.sanctioned_amount)}
-                  </td>
-
-                  {/* Actual Expenditure */}
-                  <td className="py-3.5 px-4 font-mono text-right whitespace-nowrap font-bold text-blue-700">
-                    {formatCurrency(work.actual_expenditure)}
-                  </td>
-
-                  {/* Status Badge */}
-                  <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                    <StatusBadge status={work.status} size="sm" />
-                  </td>
-
-                  {/* Action Link */}
-                  <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                    <Link
-                      to={`/works/${encodeURIComponent(work.work_id)}`}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-700 text-blue-700 hover:text-white border border-blue-200 hover:border-blue-700 transition-all text-xs font-semibold"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      <span>Inspect</span>
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-
-              {paginatedWorks.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-500">
-                    <div className="max-w-md mx-auto space-y-2">
-                      <p className="font-semibold text-slate-900">No matching works found</p>
-                      <p className="text-xs text-slate-500">
-                        Try adjusting your search query or resetting filters.
-                      </p>
-                      <button
-                        onClick={clearFilters}
-                        className="mt-2 px-4 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium"
-                      >
-                        Reset Filters
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Footer Controls */}
-        <div className="bg-slate-50 px-4 py-3.5 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600">
-          <div className="flex items-center gap-4">
-            <span>
-              Page <strong className="text-slate-900">{page + 1}</strong> of{' '}
-              <strong className="text-slate-900">{Math.max(1, totalPages)}</strong>
-            </span>
-            <div className="flex items-center gap-1.5">
-              <span>Rows per page:</span>
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Rows Per Page</label>
               <select
                 value={limit}
                 onChange={(e) => {
                   setLimit(Number(e.target.value));
-                  setPage(0);
+                  setPage(1);
                 }}
-                className="bg-white border border-slate-300 rounded px-2 py-1 text-slate-800 text-xs focus:outline-none"
+                className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
               >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
+                <option value={15}>15 per page</option>
+                <option value={25}>25 per page</option>
+                <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
               </select>
             </div>
-          </div>
-
-          <div className="flex items-center space-x-2">
             <button
-              onClick={() => setPage(Math.max(0, page - 1))}
-              disabled={page === 0}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-xs"
+              onClick={handleResetFilters}
+              className="px-3 py-1.5 border border-slate-300 hover:bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg transition-colors"
             >
-              <ChevronLeft className="w-4 h-4" />
-              <span>Previous</span>
+              Reset
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Results Count and Table */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+          <span className="text-xs font-semibold text-slate-600">
+            Showing <strong className="text-slate-900">{startRecord.toLocaleString('en-IN')}</strong> to{' '}
+            <strong className="text-slate-900">{endRecord.toLocaleString('en-IN')}</strong> of{' '}
+            <strong className="text-slate-900">{total.toLocaleString('en-IN')}</strong> works
+          </span>
+          <span className="text-xs text-slate-500 font-medium">
+            Page {page} of {totalPages}
+          </span>
+        </div>
+
+        {loading ? (
+          <div className="p-6">
+            <LoadingSkeleton rows={10} />
+          </div>
+        ) : works.length === 0 ? (
+          <div className="p-12 text-center space-y-3">
+            <Filter className="w-8 h-8 text-slate-400 mx-auto" />
+            <h3 className="text-base font-bold text-slate-900">No works match your filter criteria</h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              Try adjusting your search keywords, selecting 'All States', or resetting filters.
+            </p>
+            <button
+              onClick={handleResetFilters}
+              className="mt-2 px-4 py-2 bg-blue-700 text-white rounded-xl text-xs font-semibold"
+            >
+              Reset All Filters
+            </button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                <tr>
+                  <th className="py-3 px-4 font-semibold">Work ID & Description</th>
+                  <th
+                    onClick={() => handleSort('mp_name')}
+                    className="py-3 px-4 font-semibold cursor-pointer hover:text-slate-900"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>MP & Constituency</span>
+                      <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort('state')}
+                    className="py-3 px-4 font-semibold cursor-pointer hover:text-slate-900"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>State</span>
+                      <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort('recommended_amount')}
+                    className="py-3 px-4 font-semibold text-right cursor-pointer hover:text-slate-900"
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Recommended</span>
+                      <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort('sanctioned_amount')}
+                    className="py-3 px-4 font-semibold text-right cursor-pointer hover:text-slate-900"
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Sanctioned</span>
+                      <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                    </div>
+                  </th>
+                  <th className="py-3 px-4 font-semibold text-center">Status</th>
+                  <th className="py-3 px-4 font-semibold text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {works.map((w) => (
+                  <tr key={w.work_id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="py-3.5 px-4 max-w-sm">
+                      <span className="font-mono text-xs text-blue-700 block font-semibold">{w.work_id}</span>
+                      <span className="text-slate-800 text-xs line-clamp-2 font-medium mt-0.5">
+                        {w.work_description || 'No description provided'}
+                      </span>
+                      {w.implementing_agency && (
+                        <span className="text-[11px] text-slate-400 block mt-0.5 truncate">
+                          IA: {w.implementing_agency}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4 text-xs">
+                      <span className="font-bold text-slate-900 block">{w.mp_name || 'N/A'}</span>
+                      <span className="text-slate-500">{w.constituency || 'N/A'}</span>
+                    </td>
+                    <td className="py-3.5 px-4 text-xs text-slate-600">{w.state || 'N/A'}</td>
+                    <td className="py-3.5 px-4 text-xs font-medium text-slate-700 text-right">
+                      {formatCurrency(w.recommended_amount)}
+                    </td>
+                    <td className="py-3.5 px-4 text-xs font-bold text-right text-emerald-700">
+                      {formatCurrency(w.sanctioned_amount)}
+                    </td>
+                    <td className="py-3.5 px-4 text-center">
+                      <StatusBadge status={w.status} />
+                    </td>
+                    <td className="py-3.5 px-4 text-center">
+                      <Link
+                        to={`/works/${encodeURIComponent(w.work_id)}`}
+                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-semibold px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Inspect</span>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3 bg-slate-50/50">
+          <span className="text-xs text-slate-600">
+            Page <strong>{page}</strong> of <strong>{totalPages}</strong> ({total.toLocaleString('en-IN')} total projects)
+          </span>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setPage(1)}
+              disabled={page <= 1}
+              className="p-1.5 rounded-lg border border-slate-300 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 transition-colors"
+              title="First Page"
+            >
+              <ChevronsLeft className="w-4 h-4" />
             </button>
             <button
-              onClick={() => setPage(page + 1)}
-              disabled={page + 1 >= totalPages || totalPages === 0}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-xs"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="p-1.5 rounded-lg border border-slate-300 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 transition-colors"
+              title="Previous Page"
             >
-              <span>Next</span>
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <span className="px-3 py-1 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg">
+              {page}
+            </span>
+
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="p-1.5 rounded-lg border border-slate-300 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 transition-colors"
+              title="Next Page"
+            >
               <ChevronRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setPage(totalPages)}
+              disabled={page >= totalPages}
+              className="p-1.5 rounded-lg border border-slate-300 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 transition-colors"
+              title="Last Page"
+            >
+              <ChevronsRight className="w-4 h-4" />
             </button>
           </div>
         </div>

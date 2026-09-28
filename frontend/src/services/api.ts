@@ -1,23 +1,72 @@
 import axios from 'axios';
-import type { Work, SystemStatus, DetectorCoverage } from '../types';
+import type { Work, WorksSummary, WorksListResponse, FilterOptions, SystemStatus, DetectorCoverage } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-export const fetchWorks = async (params: { skip?: number; limit?: number } = {}): Promise<Work[]> => {
+export interface FetchWorksParams {
+  page?: number;
+  skip?: number;
+  limit?: number;
+  search?: string;
+  state?: string;
+  status?: string;
+  financial_year?: string;
+  min_amount?: number;
+  sort_by?: string;
+  sort_order?: 'asc' | 'desc';
+  envelope?: boolean;
+}
+
+export const fetchWorks = async (params: FetchWorksParams = {}): Promise<WorksListResponse> => {
   try {
-    const response = await apiClient.get<Work[]>('/api/works/', { params });
-    return response.data || [];
+    const response = await apiClient.get<any>('/api/works/', {
+      params: {
+        envelope: true,
+        ...params,
+      },
+    });
+    // In case backend returns raw array or envelope
+    if (Array.isArray(response.data)) {
+      return {
+        total: response.data.length,
+        page: params.page || 1,
+        limit: params.limit || response.data.length,
+        total_pages: 1,
+        items: response.data,
+      };
+    }
+    return response.data;
   } catch (error) {
     console.error('Error fetching works:', error);
     throw error;
+  }
+};
+
+export const fetchWorksSummary = async (): Promise<WorksSummary> => {
+  try {
+    const response = await apiClient.get<WorksSummary>('/api/works/summary');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching works summary:', error);
+    throw error;
+  }
+};
+
+export const fetchFilterOptions = async (): Promise<FilterOptions> => {
+  try {
+    const response = await apiClient.get<FilterOptions>('/api/works/filters');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching filter options:', error);
+    return { states: [], statuses: [], financial_years: [] };
   }
 };
 

@@ -13,16 +13,18 @@ export const formatCurrencyShort = (amount: number | null | undefined): string =
   if (amount === null || amount === undefined) {
     return 'N/A';
   }
-  if (amount >= 10000000) {
-    return `₹${(amount / 10000000).toFixed(2)} Cr`;
+  const abs = Math.abs(amount);
+  const sign = amount < 0 ? '-' : '';
+  if (abs >= 10000000) {
+    return `${sign}₹${(abs / 10000000).toFixed(2)} Cr`;
   }
-  if (amount >= 100000) {
-    return `₹${(amount / 100000).toFixed(2)} L`;
+  if (abs >= 100000) {
+    return `${sign}₹${(abs / 100000).toFixed(2)} L`;
   }
-  if (amount >= 1000) {
-    return `₹${(amount / 1000).toFixed(1)} k`;
+  if (abs >= 1000) {
+    return `${sign}₹${(abs / 1000).toFixed(1)} k`;
   }
-  return `₹${amount.toLocaleString('en-IN')}`;
+  return `${sign}₹${abs.toLocaleString('en-IN')}`;
 };
 
 export const formatDate = (dateString: string | null | undefined): string => {

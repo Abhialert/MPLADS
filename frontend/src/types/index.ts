@@ -38,6 +38,62 @@ export interface Work {
   updated_at?: string | null;
 }
 
+export interface StatusDistribution {
+  status: string;
+  count: number;
+  recommended_amount: number;
+  sanctioned_amount: number;
+}
+
+export interface StateDistribution {
+  state: string;
+  count: number;
+  recommended_amount: number;
+  sanctioned_amount: number;
+  sanction_rate: number;
+}
+
+export interface TopMP {
+  mp_name: string;
+  constituency: string;
+  state: string;
+  works_count: number;
+  recommended_amount: number;
+  sanctioned_amount: number;
+}
+
+export interface WorksSummary {
+  total_works: number;
+  total_recommended: number;
+  total_sanctioned: number;
+  total_expenditure: number;
+  sanction_rate: number;
+  completed_count: number;
+  ongoing_count: number;
+  sanctioned_count: number;
+  unsanctioned_count: number;
+  high_value_count: number;
+  crore_plus_count: number;
+  by_status: StatusDistribution[];
+  by_state: StateDistribution[];
+  top_mps: TopMP[];
+  source: string;
+}
+
+export interface WorksListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+  items: Work[];
+}
+
+export interface FilterOptions {
+  states: string[];
+  statuses: string[];
+  financial_years: string[];
+}
+
 export interface SystemStatus {
   db: string;
   db_status: string;
