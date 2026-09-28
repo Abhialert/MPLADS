@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MPLAD Integrity Engine — Demo</title>
+<style>
+:root{--primary:#8B1E3F;--bg:#f7f5f0;--text:#333;--card:#fff;--border:#ccc}
+*{box-sizing:border-box}
+body{font-family:system-ui,sans-serif;margin:0;padding:2rem;background:var(--bg);color:var(--text);line-height:1.45}
+.container{max-width:1200px;margin:0 auto}
+h1{color:var(--primary);border-bottom:3px solid var(--primary);padding-bottom:.5rem;letter-spacing:-0.02em}
+h2{color:var(--primary);margin-top:2rem;font-size:1.3rem;border-left:6px solid var(--primary);padding-left:.6rem}
+.highlight{background:#fff9c4;padding:1rem;border-left:6px solid var(--primary);border-radius:4px;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.9rem;background:#fff;margin-top:.5rem}
+th{background:var(--primary);color:#fff;text-align:left;padding:.55rem .6rem}
+td{padding:.55rem .6rem;border-bottom:1px solid #ddd;vertical-align:top}
+tr:nth-child(even){background:#fdfcf8}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#eee;padding:.15em .4em;border-radius:3px}
+.badge{display:inline-block;padding:.15rem .45rem;border-radius:12px;font-weight:600;font-size:.78rem;color:#fff;background:#888}
+.badge.ok{background:#2e7d32}.badge.warn{background:#ed6c02}.badge.info{background:#1565c0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;margin-top:1rem}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1rem;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.card h3{margin-top:0;font-size:1rem;color:var(--primary)}
+.footer{margin-top:3rem;padding-top:1rem;border-top:2px solid var(--primary);font-size:.85rem;color:#666}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>MPLAD Integrity Engine — Verified Real-Data Demo</h1>
+
+<div class="highlight">
+<strong>Source truth:</strong> All data derived from verified public sources (OFFICIAL_GOVERNMENT / MoSPI / MPLADS / Dataful). No fabricated government records. Unavailable fields (sector, GPS, contractor, beneficiary) remain <code>NULL</code>, never <code>0</code> or fake.
+</div>
+
+<h2>Verified Inputs</h2>
+<table>
+<thead><tr><th>File</th><th>Type</th><th>Size</th><th>Provenance</th><th>Content / Notes</th></tr></thead>
+<tbody>
+<tr><td>Allocated Limit for Honble MPs.csv</td><td>CSV</td><td>36KB</td><td>OFFICIAL_GOVERNMENT / MPLADS portal</td><td>State, MP, Constituency, Allocated Amount (₹)</td></tr>
+<tr><td>DataSheet_MPLADS (3).csv</td><td>CSV</td><td>7.2KB</td><td>OFFICIAL_GOVERNMENT / MoSPI / MPLADS</td><td>Guidelines (§3.1.2: ₹25L ceiling outside region)</td></tr>
+<tr><td>DataSheet_MPLADS (1-3).pdf</td><td>PDF</td><td>177KB × 3</td><td>OFFICIAL_GOVERNMENT / MoSPI</td><td>Official data sheet / source evidence</td></tr>
+</tbody>
+</table>
+
+<h2>Engine Status — Honest Coverage</h2>
+<div class="grid">
+<div class="card"><h3>DB Schema</h3><p>11 canonical tables: <code>works</code>, <code>work_progress</code>, <code>payments</code>, <code>recommendations</code>, <code>data_quality_issues</code>, <code>guideline_rules</code>, <code>detector_evidence</code>, <code>risk_assessments</code>, <code>source_runs</code>.</p></div>
+<div class="card"><h3>Detectors</h3><p><span class="badge ok">FULLY_EVALUABLE</span> DATA_QUALITY, DUPLICATE<br><span class="badge warn">PARTIAL</span> TIMELINE (observed duration only — expected_completion_date not public), COST (no sector baseline)<br><span class="badge info">NOT_EVALUABLE</span> GUIDELINE_COMPLIANCE (beneficiary/SC-ST fields absent)</p></div>
+<div class="card"><h3>Evidence Pipeline</h3><p>DetectorEvidence persisted; metric names, observed/reference/difference, explanations, source fields preserved; no fraud conclusions.</p></div>
+<div class="card"><h3>Provenance</h3><p>Source classification preserved: <code>OFFICIAL_GOVERNMENT</code>, <code>PUBLIC_OTHER_GOV_SOURCE</code>, <code>SYNTHETIC</code> (isolated under synthetic/).</p></div>
+</div>
+
+<h2>Data Coverage — What Is Public vs Unavailable</h2>
+<table>
+<thead><tr><th>Field</th><th>Status</th><th>Proof / Note</th></tr></thead>
+<tbody>
+<tr><td>work_id</td><td><span class="badge ok">OBSERVED</span></td><td>Present in source CSV</td></tr>
+<tr><td>mp_name, constituency, state</td><td><span class="badge ok">OBSERVED</span></td><td>Allocated Limit CSV + DataSheet</td></tr>
+<tr><td>work_description, status, recommended_amount, sanctioned_amount, actual_expenditure</td><td><span class="badge ok">OBSERVED</span></td><td>Public export fields</td></tr>
+<tr><td>recommendation_date, sanction_date, actual_completion_date</td><td><span class="badge ok">OBSERVED</span></td><td>Where present; not always complete</td></tr>
+<tr><td>sector</td><td><span class="badge">UNAVAILABLE</span></td><td>Not in any public source inspected</td></tr>
+<tr><td>contractor_name</td><td><span class="badge">UNAVAILABLE</span></td><td>Not public</td></tr>
+<tr><td>latitude / longitude</td><td><span class="badge">UNAVAILABLE</span></td><td>No coordinates in source</td></tr>
+<tr><td>expected_completion_date</td><td><span class="badge">UNAVAILABLE</span></td><td>Not in eSAKSHI public export; required for guideline comparison</td></tr>
+<tr><td>beneficiary_type / asset_owner</td><td><span class="badge">UNAVAILABLE</span></td><td>Not public</td></tr>
+<tr><td>is_sc_area / is_st_area</td><td><span class="badge">UNAVAILABLE</span></td><td>Not in CSV / PDF</td></tr>
+</tbody>
+</table>
+
+<h2>Launch</h2>
+<p><strong>Backend API:</strong> <code>python main.py</code> (port 8000) from <code>backend/</code>. Routes: <code>/api/works/</code>, <code>/api/works/{work_id}</code>, <code>/health</code>, and <code>/</code> serves this page.</p>
+<p><strong>Data ingestion:</strong> <code>python ingest.py data/input/<filename.csv></code> (requires file to match adapter mapping).</p>
+<p><strong>Frontend:</strong> This page (<code>backend/app/index.html</code>) is served from <code>/</code>; no build step needed.</p>
+
+<div class="highlight">
+<strong>Constraint preserved verbatim:</strong> No fraud/crime conclusions — only review-priority signals (DATA_QUALITY_FLAG, POTENTIAL_DUPLICATE, OBSERVED_DURATION_ANALYSIS, EXPENDITURE_ANOMALY). All unavailable fields remain NULL. Synthetic data isolated under <code>synthetic/</code> with its own config.
+</div>
+
+<div class="footer">
+Built from Phase 0 audit + verified sources. No fabricated MPLADS records. Evidence traceable via DetectorEvidence. Source registry: <code>data/source_registry.json</code>.
+</div>
+</div>
+</body>
+</html>

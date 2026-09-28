@@ -1,0 +1,42 @@
+{
+  "SOURCE_22567_RECOMMENDED": {
+    "name": "18th LS Recommended Works",
+    "provider": "DATAFUL",
+    "upstream": "MOSPI / MPLADS / eSAKSHI",
+    "url": "https://dataful.in/datasets/22567/",
+    "provenance": "PUBLIC_OTHER_GOV_SOURCE",
+    "status": "PENDING_DOWNLOAD",
+    "expected_file": "data/input/mplads_18th_recommended_works.csv",
+    "expected_rows": 175298
+  },
+  "SOURCE_22566_COMPLETED": {
+    "name": "18th LS Completed Works",
+    "provider": "DATAFUL",
+    "upstream": "MOSPI / MPLADS / eSAKSHI",
+    "url": "https://dataful.in/datasets/22566/",
+    "provenance": "PUBLIC_OTHER_GOV_SOURCE",
+    "status": "PENDING_DOWNLOAD",
+    "expected_file": "data/input/mplads_18th_completed_works.csv",
+    "expected_rows": 44169
+  },
+  "SOURCE_22565_VENDOR": {
+    "name": "18th LS Vendor & Expenditure",
+    "provider": "DATAFUL",
+    "upstream": "MOSPI / MPLADS / eSAKSHI",
+    "url": "https://dataful.in/datasets/22565/",
+    "provenance": "PUBLIC_OTHER_GOV_SOURCE",
+    "status": "PENDING_DOWNLOAD",
+    "expected_file": "data/input/mplads_18th_vendor_expenditure.csv",
+    "expected_rows": 143257
+  },
+  "SOURCE_PDF_DATASHEET": {
+    "name": "DataSheet_MPLADS (PDF)",
+    "provider": "UNKNOWN (secondary)",
+    "upstream": "MOSPI / MPLADS / eSAKSHI",
+    "url": "file://C:/Users/ABHISHEK/Downloads/DataSheet_MPLADS.pdf",
+    "provenance": "PUBLIC_OTHER_GOV_SOURCE",
+    "status": "DOWNLOADED",
+    "file_path": "C:/Users/ABHISHEK/Downloads/DataSheet_MPLADS.pdf",
+    "file_size_bytes": 177542
+  }
+}

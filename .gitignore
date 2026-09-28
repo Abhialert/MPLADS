@@ -1,0 +1,64 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Data files (large CSVs, backups)
+data/input/*.csv
+!data/input/sample_esakshi.csv
+data/source_snapshots/
+backend/data/mplad_integrity.db
+data/mplad_integrity.db
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.local/
+frontend/.env
+frontend/dist-ssr/
+
+# Test coverage
+htmlcov/
+.coverage
+.pytest_cache/
+
+# Misc
+*.bak
+*.backup
+*~

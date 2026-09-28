@@ -1,0 +1,19 @@
+/* Chart Tooltip Customizations for Light Theme */
+.recharts-default-tooltip {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1) !important;
+  color: #0f172a !important;
+}
+
+.recharts-tooltip-label {
+  color: #334155 !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+}
+
+.recharts-tooltip-item {
+  color: #475569 !important;
+  font-size: 12px !important;
+}

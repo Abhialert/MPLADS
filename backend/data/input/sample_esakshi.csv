@@ -1,0 +1,4 @@
+Work_ID,MP_Name,MP_Type,Constituency,State,Financial_Year,Work_Description,Recommended_Amount,Sanctioned_Amount,Actual_Expenditure,Recommended_Date,Sanction_Date,Completion_Date,Status,Implementing_Agency,Location_Text,Source_URL
+WORK001,Shri Ram Lal,Lok Sabha,Amritsar,Punjab,2023-24,Construction of Community Hall,2500000,2500000,2000000,01-04-2023,15-04-2023,31-03-2024,Completed,Public Works Department,Amritsar,https://example.com/work001
+WORK002,Smt. Pooja Singh,Rajya Sabha,Lucknow,Uttar Pradesh,2022-23,Installation of Solar Panels in School,1500000,1500000,1200000,10-03-2022,25-03-2022,30-09-2022,Completed,Education Department,Lucknow,https://example.com/work002
+WORK003,Shri Mohan Kumar,Lok Sabha,Chennai,Tamil Nadu,2021-22,Building of Toilet Complex,1000000,1000000,800000,05-05-2021,20-05-2021,31-12-2021,Completed,Health Department,Chennai,https://example.com/work003
