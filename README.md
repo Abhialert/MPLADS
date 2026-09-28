@@ -1,242 +1,126 @@
-# MPLAD Integrity Engine ???
+# MPLAD Integrity Engine 🛡️🏛️
 
-> An AI-powered integrity monitoring system for India's Members of Parliament Local Area Development (MPLAD) scheme � detecting anomalies, flagging duplicates, and surfacing data quality issues across public fund expenditures.
+> An AI-powered civic integrity and expenditure monitoring observatory for India's Members of Parliament Local Area Development Scheme (MPLADS) — tracking real fund allocations, district sanction velocity, and multi-signal anomalies across 60,362+ verified official records.
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104-green?logo=fastapi)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev)
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite)](https://vitejs.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)](https://www.typescriptlang.org)
+[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v4-38B2AC?logo=tailwind-css)](https://tailwindcss.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
 ---
 
-## ?? Overview
+## 📊 Real-Time Observatory Metrics (Full Dataset)
 
-The MPLAD Integrity Engine ingests MPLAD scheme data from multiple sources (e-Sakshi, official MPLADS CSV exports), runs them through a multi-signal anomaly detection pipeline, and presents findings through an interactive React dashboard.
-
-**Key capabilities:**
-- ?? **Cost anomaly detection** � Flags works priced above statistical thresholds
-- ?? **Duplicate detection** � Identifies potentially duplicate works across sources
-- ?? **Timeline anomaly detection** � Catches works with impossible or suspicious date sequences
-- ?? **Data quality scoring** � Surfaces missing fields, inconsistencies, and incomplete records
-- ? **Multi-signal engine** � Combines all signals for a composite risk score per work
+| Metric | Official Verified Value | Insight / Audit Observation |
+| :--- | :--- | :--- |
+| **Total Works Ingested** | **60,362 projects** | Pan-India coverage across all States & Union Territories |
+| **Total Recommended Capital** | **₹34,987.47 Cr** | Cumulative allocation requests made by Hon'ble MPs |
+| **Total Sanctioned Capital** | **₹5,057.36 Cr** | Officially approved by District Implementing Agencies (IDAs) |
+| **District Sanction Rate** | **14.45%** | **₹29,930.11 Cr** in 50,888 projects awaiting district approval |
+| **Completed Projects** | **1,506 projects** | ₹827.07 Cr in completed civic infrastructure |
+| **Active Projects (Ongoing)** | **629 projects** | ₹537.19 Cr in active physical execution |
+| **High Value Projects (≥ ₹25L)**| **1,400 projects** | Includes 131 mega projects exceeding ₹1.00 Crore |
 
 ---
 
-## ??? Project Structure
+## 🚀 Key Features
+
+- 🏛️ **True Full-Dataset Telemetry**: Live SQLite database aggregations across 60,362 records via `/api/works/summary`.
+- 🔍 **Server-Side Search & Multi-Filter Query Engine**: Instant fuzzy search across descriptions, MP names, constituencies, states, and agencies, with server-side pagination (15, 25, 50, 100 per page).
+- 📈 **State-Wise Capital Radar**: Comparative analysis of Recommended vs Sanctioned amounts per State / Union Territory with calculated sanction ratios.
+- 🎯 **MP Allocation Leaderboard**: Track highest allocation volumes and project distribution per Member of Parliament.
+- 🚦 **Project Status Pipeline**: Interactive Donut chart classifying Unsanctioned, Sanctioned, Completed, Ongoing, and Unspecified works.
+- 📥 **One-Click CSV Export**: Download current paginated or filtered views for offline auditing and reporting.
+- ⚖️ **Multi-Signal Anomaly Detection**: Cost outlier detection, timeline inconsistency tracking, duplicate identification, and data completeness auditing.
+
+---
+
+## 🗂️ Project Architecture
 
 ```
 MPLAD_Integrity_Engine/
-+-- backend/                    # FastAPI backend
-�   +-- app/
-�   �   +-- adapters/           # Data source adapters (eSakshi, official MPLADS CSV)
-�   �   +-- api/                # API versioning & route definitions
-�   �   +-- detectors/          # Anomaly detection modules
-�   �   �   +-- cost_anomaly.py
-�   �   �   +-- data_quality.py
-�   �   �   +-- multi_signal_engine.py
-�   �   �   +-- potential_duplicate.py
-�   �   �   +-- timeline_anomaly.py
-�   �   +-- models/             # SQLAlchemy ORM models
-�   �   +-- routers/            # FastAPI route handlers
-�   �   +-- services/           # Business logic layer
-�   �   +-- utils/              # Shared utilities
-�   +-- main.py                 # Application entrypoint
-�   +-- ingest.py               # Data ingestion script
-�   +-- init_db.py              # Database initialisation
-�   +-- requirements.txt        # Python dependencies
-�
-+-- frontend/                   # React + TypeScript dashboard
-�   +-- src/
-�   �   +-- components/         # Reusable UI components
-�   �   +-- hooks/              # Custom React hooks
-�   �   +-- pages/              # Route-level page components
-�   �   +-- services/
-�   �   �   +-- api.ts          # Axios API client (proxied to backend)
-�   �   +-- types/              # TypeScript type definitions
-�   �   +-- utils/              # Frontend utilities
-�   +-- vite.config.ts          # Vite config (with dev & preview proxy)
-�   +-- package.json
-�
-+-- data/                       # Data directory
-�   +-- input/                  # Raw CSV files (large files git-ignored)
-�
-+-- sync/                       # Data sync utilities
-+-- synthetic/                  # Synthetic data generation scripts
-+-- tests/                      # Backend integration & unit tests
-�
-+-- demo_scenario.py            # End-to-end demo scenario runner
-+-- ingest_real_csv.py          # Real CSV ingestion helper
-+-- run_ml_actual.py            # ML pipeline runner
-+-- start_backend.bat           # One-click backend start (Windows)
-+-- start_frontend.bat          # One-click frontend start (Windows)
-+-- README.md
+├── backend/                        # FastAPI Python Backend
+│   ├── app/
+│   │   ├── adapters/               # Official MPLADS CSV & eSakshi data adapters
+│   │   ├── detectors/              # Statistical, peer, timeline & cost anomaly detectors
+│   │   ├── models/                 # SQLAlchemy models (Work, Progress, Payment, Audit)
+│   │   ├── routers/
+│   │   │   ├── works.py            # Summary aggregations, search, filtering, and pagination
+│   │   │   └── reconciliation.py   # Multi-source cross-reconciliation endpoints
+│   │   └── services/               # Feature store, ML framework, lifecycle state machine
+│   ├── data/
+│   │   └── mplad_integrity.db      # High-performance indexed SQLite database (60,362 rows)
+│   ├── main.py                     # FastAPI application entrypoint & CORS config
+│   ├── ingest_official.py          # Adapter ingestion script for official MOSPI exports
+│   └── requirements.txt            # Python dependencies
+│
+├── frontend/                       # React 19 + TypeScript + Vite 8
+│   ├── src/
+│   │   ├── components/             # MetricCard, StatusBadge, AuditBadge, Navbar, LoadingSkeleton
+│   │   ├── pages/
+│   │   │   ├── HomePage.tsx        # Executive telemetry dashboard & interactive analytics
+│   │   │   ├── WorksPage.tsx       # 60k projects search table with server pagination
+│   │   │   ├── WorkDetailPage.tsx  # Deep dossier on individual work projects
+│   │   │   └── CoveragePage.tsx    # Detector coverage and auditing rules
+│   │   ├── services/
+│   │   │   └── api.ts              # Axios client connecting to backend API
+│   │   ├── types/                  # Strict TypeScript interfaces
+│   │   └── utils/
+│   │       └── formatters.ts       # Accurate Indian currency (₹ Lakhs & Crores) formatting
+│   ├── vite.config.ts              # Vite reverse proxy config for dev and preview
+│   └── package.json
+│
+├── start_backend.bat               # One-click startup for FastAPI backend
+└── start_frontend.bat              # One-click startup for Vite frontend
 ```
 
 ---
 
-## ?? Getting Started
+## ⚡ Quick Start
 
-### Prerequisites
-
-| Tool | Version |
-|------|---------|
-| Python | 3.10 or higher |
-| Node.js | 18 or higher |
-| npm | 9 or higher |
-| Git | any |
-
----
-
-### 1. Clone the Repository
-
+### 1. Backend Setup
 ```bash
-git clone https://github.com/Abhialert/MPLADS.git
-cd MPLADS
-```
-
----
-
-### 2. Backend Setup
-
-```bash
-# Create and activate a virtual environment
-python -m venv venv
-
-# Windows
-venv\Scripts\activate
-
-# macOS / Linux
-source venv/bin/activate
-
-# Install dependencies
 cd backend
-pip install -r requirements.txt
-
-# Initialise the database
-python init_db.py
-
-# (Optional) Ingest sample data
-python ingest.py
+python -m pip install -r requirements.txt
+python -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
+- API Docs: `http://localhost:8000/docs`
+- Health Check: `http://localhost:8000/health`
+- Live Summary: `http://localhost:8000/api/works/summary`
 
-**Start the backend server:**
-
-```bash
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-Or on Windows, simply double-click **`start_backend.bat`**.
-
-The API will be live at **http://localhost:8000**  
-Interactive API docs at **http://localhost:8000/docs**
-
----
-
-### 3. Frontend Setup
-
+### 2. Frontend Setup
 ```bash
 cd frontend
 npm install
-```
-
-**Development mode (hot reload):**
-```bash
-npm run dev
-# ? http://localhost:5173
-```
-
-**Production preview:**
-```bash
 npm run build
 npm run preview
-# ? http://localhost:4173
 ```
-
-Or on Windows, simply double-click **`start_frontend.bat`**.
-
----
-
-## ?? API Reference
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/health` | Health check |
-| `GET` | `/status` | System status & stats |
-| `GET` | `/coverage` | Detector coverage summary |
-| `GET` | `/api/works/` | List all works (paginated) |
-| `GET` | `/api/works/{work_id}` | Get a specific work by ID |
-
-Full interactive documentation: **http://localhost:8000/docs**
+- Web Application: `http://localhost:4173` (or `http://localhost:5173` in development via `npm run dev`)
 
 ---
 
-## ?? Running Tests
+## 📡 API Reference
 
-```bash
-# From the project root (with venv active)
-cd backend
-pytest tests/ -v
-```
-
-Or on Windows:
-```bat
-run_tests.bat
-```
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/api/works/summary` | `GET` | Aggregated dataset analytics across all 60,362 works |
+| `/api/works/filters` | `GET` | Distinct states, statuses, and financial years for UI filters |
+| `/api/works/` | `GET` | Server-paginated works list supporting `search`, `state`, `status`, `sort_by`, `sort_order`, `page`, `limit` |
+| `/api/works/{work_id}` | `GET` | Detailed project dossier by unique identifier |
+| `/health` | `GET` | Server health and database connection status |
+| `/coverage` | `GET` | Audit detector rule coverage evaluation |
 
 ---
 
-## ?? Configuration
-
-Create a `.env` file in the `backend/` directory:
-
-```env
-# Allowed CORS origins (comma-separated)
-ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:4173
-
-# Database URL (defaults to SQLite)
-DATABASE_URL=sqlite:///./mplad_integrity.db
-```
+## 📜 Provenance & Truthfulness Guarantee
+This engine enforces strict civic data provenance:
+- Observed values directly originate from official MOSPI and eSAKSHI exports.
+- Fields not publicly disclosed in official sources remain untouched as `NULL` and are flagged with audit badges to prevent synthetic hallucination.
 
 ---
 
-## ??? Architecture
-
-```
-CSV / eSakshi Data
-       �
-       ?
-  Data Adapters  --------------? SQLite Database
-       �                              �
-       ?                              ?
-Anomaly Detectors              FastAPI Backend
-  +-- Cost Anomaly              (REST API :8000)
-  +-- Duplicate Detection             �
-  +-- Timeline Anomaly                ?
-  +-- Data Quality            React Dashboard
-  +-- Multi-Signal Engine      (Vite :5173 / :4173)
-```
-
----
-
-## ?? Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Commit your changes: `git commit -m "feat: add your feature"`
-4. Push to the branch: `git push origin feature/your-feature`
-5. Open a Pull Request
-
----
-
-## ?? License
-
-This project is licensed under the **MIT License** � see the [LICENSE](LICENSE) file for details.
-
----
-
-## ?? Contact
-
-**Abhishek Gupta** � [@Abhialert](https://github.com/Abhialert)  
-Project Link: [https://github.com/Abhialert/MPLADS](https://github.com/Abhialert/MPLADS)
+## 📄 License
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
